@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luma Media — Admin Upload</title>
+<style>
+  :root{
+    --bg:#08090c; --card:#111319; --border:#22252e; --text:#f2f3f5;
+    --text-dim:#9aa0ab; --accent:#3b82f6; --radius:14px;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);margin:0;padding:24px 16px 60px;}
+  .wrap{max-width:640px;margin:0 auto;}
+  h1{font-size:22px;margin:0 0 6px;}
+  p.sub{color:var(--text-dim);font-size:14px;margin:0 0 24px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:20px;}
+  label{display:block;font-size:12px;letter-spacing:1px;font-weight:700;color:var(--text-dim);margin-bottom:6px;}
+  input,select,textarea{
+    width:100%;background:#0e1015;border:1px solid var(--border);border-radius:10px;
+    padding:12px 14px;color:var(--text);font-size:14.5px;font-family:inherit;outline:none;margin-bottom:16px;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+  textarea{resize:vertical;min-height:70px;}
+  button{
+    width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;
+    padding:14px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;
+  }
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  button.secondary{background:#2a2d38;}
+  .status{font-size:13.5px;margin-top:12px;padding:10px 12px;border-radius:8px;display:none;}
+  .status.ok{display:block;background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.3);}
+  .status.err{display:block;background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.3);}
+  .preview{width:100%;max-height:220px;object-fit:contain;border-radius:10px;margin-bottom:16px;display:none;background:#000;}
+  .item-list{display:flex;flex-direction:column;gap:10px;}
+  .item{display:flex;gap:10px;align-items:center;background:#0e1015;border:1px solid var(--border);border-radius:10px;padding:10px;flex-wrap:wrap;}
+  .item img{width:50px;height:50px;object-fit:cover;border-radius:8px;flex:none;}
+  .item .info{flex:1;min-width:120px;}
+  .item .info b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .item button{width:auto;padding:7px 10px;font-size:12px;}
+  .item .info span{font-size:12px;color:var(--text-dim);}
+  .item .del-btn{background:#7f1d1d;}
+  #login-screen input{margin-bottom:10px;}
+  .tabs{display:flex;gap:10px;margin-bottom:18px;}
+  .tab-btn{
+    flex:1;background:var(--card);border:1px solid var(--border);color:var(--text-dim);
+    border-radius:10px;padding:12px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;
+  }
+  .tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .progress-wrap{background:#0e1015;border:1px solid var(--border);border-radius:8px;height:10px;overflow:hidden;margin-bottom:16px;display:none;}
+  .progress-fill{height:100%;width:0%;background:var(--accent);transition:width .15s;}
+  .video-thumb-preview{width:100%;max-height:220px;object-fit:contain;border-radius:10px;margin-bottom:10px;display:none;background:#000;}
+  .hint{font-size:12px;color:var(--text-faint,#5b6070);margin:-10px 0 16px;}
+  .item .info small{display:block;color:var(--text-dim);font-size:11px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔐 Luma Media — Admin</h1>
+  <p class="sub">Trang quản trị nội bộ để đăng ảnh lên Gallery. Không chia sẻ link này công khai.</p>
+
+  <div class="card" id="login-screen">
+    <label>MẬT KHẨU ADMIN</label>
+    <input type="password" id="password-input" placeholder="Nhập mật khẩu...">
+    <button onclick="login()">Đăng nhập</button>
+    <div class="status" id="login-status"></div>
+  </div>
+
+  <div id="admin-panel" style="display:none;">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-image-btn" onclick="switchTab('image')">🖼️ Ảnh</button>
+      <button class="tab-btn" id="tab-video-btn" onclick="switchTab('video')">🎬 Video</button>
+    </div>
+
+    <div id="tab-image">
+    <div class="card">
+      <label>ẢNH (JPG/PNG, sẽ tự nén trước khi upload)</label>
+      <input type="file" id="file-input" accept="image/*">
+      <img id="preview" class="preview">
+
+      <label>TIÊU ĐỀ</label>
+      <input type="text" id="title-input" placeholder="Vd: Golden Hour in Hanoi's Old Quarter">
+
+      <label>DANH MỤC</label>
+      <select id="cat-input">
+        <option value="FILM & CINEMA">Film & Cinema</option>
+        <option value="MUSIC">Music</option>
+        <option value="TECH">Tech</option>
+        <option value="GAMING">Gaming</option>
+        <option value="ENTERTAINMENT">Entertainment</option>
+        <option value="NATURE">Nature</option>
+      </select>
+
+      <label>TÊN KÊNH (tuỳ chọn)</label>
+      <input type="text" id="channel-input" placeholder="Vd: Luma Media">
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>LƯỢT XEM (tuỳ chọn, vd: 125.3K)</label>
+          <input type="text" id="views-input" placeholder="0">
+        </div>
+        <div style="flex:1;">
+          <label>LƯỢT THÍCH (tuỳ chọn, vd: 8.4K)</label>
+          <input type="text" id="likes-input" placeholder="0">
+        </div>
+      </div>
+
+      <label>MÔ TẢ (tuỳ chọn)</label>
+      <textarea id="desc-input" placeholder="Mô tả ngắn về ảnh..."></textarea>
+
+      <button id="upload-btn" onclick="uploadImage()">Đăng ảnh</button>
+      <div class="status" id="upload-status"></div>
+    </div>
+
+    <div class="card">
+      <label style="margin-bottom:14px;">ẢNH ĐÃ ĐĂNG</label>
+      <div class="item-list" id="item-list">Đang tải...</div>
+    </div>
+    </div><!-- /tab-image -->
+
+    <div id="tab-video" style="display:none;">
+      <div class="card">
+        <label>VIDEO (MP4/WEBM/MOV, upload thẳng lên Blob Storage)</label>
+        <input type="file" id="video-file-input" accept="video/*">
+        <div class="hint">Ảnh đại diện (thumbnail) và thời lượng sẽ được tự động lấy từ video.</div>
+        <img id="video-thumb-preview" class="video-thumb-preview">
+
+        <label>TIÊU ĐỀ</label>
+        <input type="text" id="v-title-input" placeholder="Vd: HYPER-NEON TOKYO - A Cyberpunk Cinematic Short Film">
+
+        <label>DANH MỤC</label>
+        <select id="v-cat-input">
+          <option value="Film & Cinema">Film & Cinema</option>
+          <option value="Music">Music</option>
+          <option value="Tech">Tech</option>
+          <option value="Gaming">Gaming</option>
+          <option value="Education">Education</option>
+          <option value="News & Documentary">News &amp; Documentary</option>
+          <option value="Entertainment">Entertainment</option>
+          <option value="Nature">Nature</option>
+        </select>
+
+        <label>TAGS (cách nhau bằng dấu phẩy, tuỳ chọn)</label>
+        <input type="text" id="v-tags-input" placeholder="Vd: Cyberpunk, Tokyo, Short Film">
+
+        <label>TÊN KÊNH (tuỳ chọn)</label>
+        <input type="text" id="v-channel-input" placeholder="Vd: Luma Media">
+
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label>LƯỢT XEM (tuỳ chọn, vd: 125.3K)</label>
+            <input type="text" id="v-views-input" placeholder="0">
+          </div>
+          <div style="flex:1;">
+            <label>LƯỢT THÍCH (tuỳ chọn, vd: 8.4K)</label>
+            <input type="text" id="v-likes-input" placeholder="0">
+          </div>
+        </div>
+
+        <label>HASHTAG (tuỳ chọn)</label>
+        <input type="text" id="v-hashtag-input" placeholder="Vd: # Cinematic Short Film">
+
+        <label>MÔ TẢ (tuỳ chọn)</label>
+        <textarea id="v-desc-input" placeholder="Mô tả ngắn về video..."></textarea>
+
+        <div class="progress-wrap" id="v-progress-wrap"><div class="progress-fill" id="v-progress-fill"></div></div>
+        <button id="video-upload-btn" onclick="uploadVideo()">Đăng video</button>
+        <div class="status" id="video-upload-status"></div>
+      </div>
+
+      <div class="card">
+        <label style="margin-bottom:14px;">VIDEO ĐÃ ĐĂNG</label>
+        <div class="item-list" id="video-item-list">Đang tải...</div>
+      </div>
+    </div><!-- /tab-video -->
+  </div>
+</div>
+
+<script type="module">
+  // Thư viện client upload chính thức của Vercel Blob (chạy trong trình duyệt),
+  // dùng để đẩy file video thẳng lên Blob Storage, bỏ qua giới hạn 4.5MB của
+  // Serverless Function. Nếu domain esm.sh bị chặn, đổi sang cách "npm run build"
+  // và import '@vercel/blob/client' qua bundler thay vì CDN.
+  import { upload } from 'https://esm.sh/@vercel/blob@0.27.0/client';
+  window.__blobUpload = upload;
+</script>
+
+<script>
+let adminPassword = '';
+let selectedFile = null;
+
+function login(){
+  const pw = document.getElementById('password-input').value;
+  if(!pw){ showLoginStatus('Vui lòng nhập mật khẩu.', false); return; }
+  adminPassword = pw;
+  // Xác thực bằng cách thử gọi API (GET danh sách không cần auth, nên ta thử 1 request nhẹ có auth)
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-panel').style.display = 'block';
+  loadItems();
+}
+function showLoginStatus(msg, ok){
+  const el = document.getElementById('login-status');
+  el.textContent = msg;
+  el.className = 'status ' + (ok ? 'ok' : 'err');
+}
+
+document.getElementById('file-input').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  selectedFile = file;
+  const preview = document.getElementById('preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+});
+
+// ---------- Tabs ----------
+let videoLoaded = false;
+function switchTab(name){
+  document.getElementById('tab-image').style.display = name === 'image' ? 'block' : 'none';
+  document.getElementById('tab-video').style.display = name === 'video' ? 'block' : 'none';
+  document.getElementById('tab-image-btn').classList.toggle('active', name === 'image');
+  document.getElementById('tab-video-btn').classList.toggle('active', name === 'video');
+  if(name === 'video' && !videoLoaded){
+    videoLoaded = true;
+    loadVideoItems();
+  }
+}
+
+// ---------- Video: chọn file -> tự lấy thumbnail + thời lượng ----------
+let selectedVideoFile = null;
+let videoMeta = null; // { duration, thumbBase64, thumbContentType }
+
+function formatDuration(sec){
+  if(!isFinite(sec) || sec < 0) return '00:00';
+  const m = Math.floor(sec/60);
+  const s = Math.floor(sec%60);
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function extractVideoMeta(file){
+  return new Promise((resolve, reject)=>{
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(file);
+    video.src = url;
+
+    video.onloadedmetadata = ()=>{
+      const seekTime = Math.min(1, (video.duration || 0) / 2);
+      video.currentTime = seekTime || 0;
+    };
+    video.onseeked = ()=>{
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 360;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob)=>{
+          const fr = new FileReader();
+          fr.onload = ()=>{
+            URL.revokeObjectURL(url);
+            resolve({
+              duration: formatDuration(video.duration),
+              thumbBase64: fr.result.split(',')[1],
+              thumbContentType: 'image/jpeg',
+            });
+          };
+          fr.onerror = reject;
+          fr.readAsDataURL(blob);
+        }, 'image/jpeg', 0.8);
+      }catch(err){ reject(err); }
+    };
+    video.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('Không đọc được file video.')); };
+  });
+}
+
+document.getElementById('video-file-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  selectedVideoFile = file;
+  videoMeta = null;
+  const statusEl = document.getElementById('video-upload-status');
+  try{
+    videoMeta = await extractVideoMeta(file);
+    const preview = document.getElementById('video-thumb-preview');
+    preview.src = 'data:image/jpeg;base64,' + videoMeta.thumbBase64;
+    preview.style.display = 'block';
+  }catch(err){
+    setStatus(statusEl, '⚠️ Không lấy được thumbnail/thời lượng tự động: ' + err.message, false);
+  }
+});
+
+async function uploadVideo(){
+  const title = document.getElementById('v-title-input').value.trim();
+  const catValue = document.getElementById('v-cat-input').value;
+  const tagsRaw = document.getElementById('v-tags-input').value.trim();
+  const channel = document.getElementById('v-channel-input').value.trim();
+  const views = document.getElementById('v-views-input').value.trim();
+  const likes = document.getElementById('v-likes-input').value.trim();
+  const hashtag = document.getElementById('v-hashtag-input').value.trim();
+  const desc = document.getElementById('v-desc-input').value.trim();
+  const btn = document.getElementById('video-upload-btn');
+  const statusEl = document.getElementById('video-upload-status');
+  const progressWrap = document.getElementById('v-progress-wrap');
+  const progressFill = document.getElementById('v-progress-fill');
+
+  if(!selectedVideoFile){ setStatus(statusEl, 'Vui lòng chọn video.', false); return; }
+  if(!title){ setStatus(statusEl, 'Vui lòng nhập tiêu đề.', false); return; }
+  if(!window.__blobUpload){ setStatus(statusEl, 'Thư viện upload chưa sẵn sàng, vui lòng tải lại trang.', false); return; }
+
+  btn.disabled = true;
+  progressWrap.style.display = 'block';
+  progressFill.style.width = '0%';
+
+  try{
+    btn.textContent = 'Đang phân tích video...';
+    if(!videoMeta){
+      videoMeta = await extractVideoMeta(selectedVideoFile);
+    }
+
+    btn.textContent = 'Đang upload video...';
+    const safeName = selectedVideoFile.name.replace(/[^a-zA-Z0-9.\-_]/g,'_');
+    const blob = await window.__blobUpload(`videos/${Date.now()}-${safeName}`, selectedVideoFile, {
+      access: 'public',
+      handleUploadUrl: '/api/video-upload',
+      clientPayload: JSON.stringify({ password: adminPassword }),
+      onUploadProgress: (p)=>{
+        const pct = Math.round(p.percentage || 0);
+        progressFill.style.width = pct + '%';
+        btn.textContent = `Đang upload video (${pct}%)...`;
+      },
+    });
+
+    btn.textContent = 'Đang lưu thông tin...';
+    const tagsArr = tagsRaw ? tagsRaw.split(',').map(t=>t.trim()).filter(Boolean) : [];
+
+    const res = await fetch('/api/video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({
+        title, category: catValue.toUpperCase(), filterCat: catValue,
+        tags: tagsArr, channel, desc, hashtag, views, likes,
+        duration: videoMeta.duration, videoUrl: blob.url,
+        thumbBase64: videoMeta.thumbBase64, thumbFilename: 'thumb.jpg',
+        thumbContentType: videoMeta.thumbContentType,
+      }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Lưu thông tin thất bại.');
+
+    setStatus(statusEl, '✅ Đăng video thành công!', true);
+    document.getElementById('v-title-input').value = '';
+    document.getElementById('v-tags-input').value = '';
+    document.getElementById('v-channel-input').value = '';
+    document.getElementById('v-views-input').value = '';
+    document.getElementById('v-likes-input').value = '';
+    document.getElementById('v-hashtag-input').value = '';
+    document.getElementById('v-desc-input').value = '';
+    document.getElementById('video-thumb-preview').style.display = 'none';
+    document.getElementById('video-file-input').value = '';
+    selectedVideoFile = null;
+    videoMeta = null;
+    loadVideoItems();
+  }catch(err){
+    setStatus(statusEl, '❌ ' + err.message, false);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Đăng video';
+    progressWrap.style.display = 'none';
+  }
+}
+
+async function loadVideoItems(){
+  const list = document.getElementById('video-item-list');
+  try{
+    const res = await fetch('/api/video');
+    const items = await res.json();
+    if(!items.length){ list.innerHTML = '<span style="color:var(--text-dim);font-size:13.5px;">Chưa có video nào.</span>'; return; }
+    list.innerHTML = items.map(it => `
+      <div class="item">
+        <img src="${it.thumb}">
+        <div class="info">
+          <b>${it.title}</b>
+          <span>${it.category} · ⏱ ${it.duration} · 👁 ${it.views || 0} · 👍 ${it.likes || 0}</span>
+          <small><a href="${it.videoUrl}" target="_blank" style="color:var(--accent);">Xem file video ↗</a></small>
+        </div>
+        <button class="secondary" onclick='editVideoItem(${JSON.stringify(it)})' style="background:#2a2d38;">Sửa</button>
+        <button class="secondary" onclick="addVideoComment('${it.id}')" style="background:#1e3a5f;">+Cmt</button>
+        <button class="del-btn" onclick="deleteVideoItem('${it.id}')">Xoá</button>
+      </div>
+    `).join('');
+  }catch(e){
+    list.innerHTML = '<span style="color:#f87171;font-size:13.5px;">Không tải được danh sách video. Kiểm tra lại /api/video đã deploy chưa.</span>';
+  }
+}
+
+async function editVideoItem(it){
+  const newTitle = prompt('Tiêu đề:', it.title);
+  if(newTitle === null) return;
+  const newViews = prompt('Lượt xem:', it.views || '0');
+  if(newViews === null) return;
+  const newLikes = prompt('Lượt thích:', it.likes || '0');
+  if(newLikes === null) return;
+  const newDuration = prompt('Thời lượng (mm:ss):', it.duration || '00:00');
+  if(newDuration === null) return;
+  const newDesc = prompt('Mô tả:', it.desc || '');
+  if(newDesc === null) return;
+
+  try{
+    const res = await fetch('/api/video?id=' + encodeURIComponent(it.id), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ title: newTitle, views: newViews, likes: newLikes, duration: newDuration, desc: newDesc }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Cập nhật thất bại.');
+    loadVideoItems();
+  }catch(e){
+    alert('❌ ' + e.message);
+  }
+}
+
+async function addVideoComment(id){
+  const name = prompt('Tên người bình luận:', 'Ẩn danh');
+  if(name === null) return;
+  const text = prompt('Nội dung bình luận:');
+  if(text === null || !text.trim()) return;
+  const likes = prompt('Số lượt thích cho bình luận (tuỳ chọn):', '0');
+  if(likes === null) return;
+
+  try{
+    const res = await fetch('/api/video?id=' + encodeURIComponent(id), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ newComment: { name, text, likes } }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Thêm bình luận thất bại.');
+    alert('✅ Đã thêm bình luận.');
+    loadVideoItems();
+  }catch(e){
+    alert('❌ ' + e.message);
+  }
+}
+
+async function deleteVideoItem(id){
+  if(!confirm('Xoá video này?')) return;
+  try{
+    const res = await fetch('/api/video?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: { 'x-admin-password': adminPassword },
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Xoá thất bại.');
+    loadVideoItems();
+  }catch(e){
+    alert('❌ ' + e.message);
+  }
+}
+
+// Nén & resize ảnh trong trình duyệt trước khi upload (giữ web nhẹ, upload nhanh)
+function compressImage(file, maxWidth = 1600, quality = 0.82){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e)=>{ img.src = e.target.result; };
+    reader.onerror = reject;
+    img.onload = ()=>{
+      let { width, height } = img;
+      if(width > maxWidth){
+        height = Math.round(height * (maxWidth / width));
+        width = maxWidth;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob)=>{
+        const fr = new FileReader();
+        fr.onload = ()=> resolve({ base64: fr.result.split(',')[1], contentType: 'image/jpeg' });
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImage(){
+  const title = document.getElementById('title-input').value.trim();
+  const cat = document.getElementById('cat-input').value;
+  const channel = document.getElementById('channel-input').value.trim();
+  const desc = document.getElementById('desc-input').value.trim();
+  const views = document.getElementById('views-input').value.trim();
+  const likes = document.getElementById('likes-input').value.trim();
+  const btn = document.getElementById('upload-btn');
+  const statusEl = document.getElementById('upload-status');
+
+  if(!selectedFile){ setStatus(statusEl, 'Vui lòng chọn ảnh.', false); return; }
+  if(!title){ setStatus(statusEl, 'Vui lòng nhập tiêu đề.', false); return; }
+
+  btn.disabled = true; btn.textContent = 'Đang xử lý ảnh...';
+  try{
+    const { base64, contentType } = await compressImage(selectedFile);
+    btn.textContent = 'Đang upload...';
+
+    const res = await fetch('/api/gallery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({
+        title, cat, channel, desc, views, likes,
+        imageBase64: base64,
+        filename: selectedFile.name.replace(/[^a-zA-Z0-9.\-_]/g,'_'),
+        contentType,
+      }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Upload thất bại.');
+
+    setStatus(statusEl, '✅ Đăng ảnh thành công!', true);
+    document.getElementById('title-input').value = '';
+    document.getElementById('desc-input').value = '';
+    document.getElementById('channel-input').value = '';
+    document.getElementById('views-input').value = '';
+    document.getElementById('likes-input').value = '';
+    document.getElementById('preview').style.display = 'none';
+    document.getElementById('file-input').value = '';
+    selectedFile = null;
+    loadItems();
+  }catch(err){
+    setStatus(statusEl, '❌ ' + err.message, false);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Đăng ảnh';
+  }
+}
+
+function setStatus(el, msg, ok){
+  el.textContent = msg;
+  el.className = 'status ' + (ok ? 'ok' : 'err');
+  setTimeout(()=>{ el.style.display='none'; }, 5000);
+}
+
+async function loadItems(){
+  const list = document.getElementById('item-list');
+  try{
+    const res = await fetch('/api/gallery');
+    const items = await res.json();
+    if(!items.length){ list.innerHTML = '<span style="color:var(--text-dim);font-size:13.5px;">Chưa có ảnh nào.</span>'; return; }
+    list.innerHTML = items.map(it => `
+      <div class="item">
+        <img src="${it.img}">
+        <div class="info">
+          <b>${it.title}</b>
+          <span>${it.cat} · 👁 ${it.views || 0} · 👍 ${it.likes || 0}</span>
+        </div>
+        <button class="secondary" onclick='editItem(${JSON.stringify(it)})' style="background:#2a2d38;">Sửa</button>
+        <button class="secondary" onclick="addComment('${it.id}')" style="background:#1e3a5f;">+Cmt</button>
+        <button class="del-btn" onclick="deleteItem('${it.id}')">Xoá</button>
+      </div>
+    `).join('');
+  }catch(e){
+    list.innerHTML = '<span style="color:#f87171;font-size:13.5px;">Không tải được danh sách. Kiểm tra lại API/Blob Storage đã setup chưa.</span>';
+  }
+}
+
+async function editItem(it){
+  const newTitle = prompt('Tiêu đề:', it.title);
+  if(newTitle === null) return;
+  const newViews = prompt('Lượt xem:', it.views || '0');
+  if(newViews === null) return;
+  const newLikes = prompt('Lượt thích:', it.likes || '0');
+  if(newLikes === null) return;
+  const newDate = prompt('Ngày đăng (vd: Jul 26, 2026):', it.date || '');
+  if(newDate === null) return;
+  const newDesc = prompt('Mô tả:', it.desc || '');
+  if(newDesc === null) return;
+
+  try{
+    const res = await fetch('/api/gallery?id=' + encodeURIComponent(it.id), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ title: newTitle, views: newViews, likes: newLikes, date: newDate, desc: newDesc }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Cập nhật thất bại.');
+    loadItems();
+  }catch(e){
+    alert('❌ ' + e.message);
+  }
+}
+
+async function addComment(id){
+  const name = prompt('Tên người bình luận:', 'Ẩn danh');
+  if(name === null) return;
+  const text = prompt('Nội dung bình luận:');
+  if(text === null || !text.trim()) return;
+  const likes = prompt('Số lượt thích cho bình luận (tuỳ chọn):', '0');
+  if(likes === null) return;
+
+  try{
+    const res = await fetch('/api/gallery?id=' + encodeURIComponent(id), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ newComment: { name, text, likes } }),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Thêm bình luận thất bại.');
+    alert('✅ Đã thêm bình luận.');
+    loadItems();
+  }catch(e){
+    alert('❌ ' + e.message);
+  }
+}
+
+async function deleteItem(id){
+  if(!confirm('Xoá ảnh này?')) return;
+  try{
+    const res = await fetch('/api/gallery?id=' + encodeURIComponent(id), {
+      method: 'DELETE',
+      headers: { 'x-admin-password': adminPassword },
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Xoá thất bại.');
+    loadItems();
+  }catch(e){
+    alert('❌ ' + e.message);
+  }
+}
+</script>
+</body>
+</html>
